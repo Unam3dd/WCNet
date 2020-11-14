@@ -21,6 +21,8 @@ WCNet is network library for windows operating system in development the last ve
 ```c
 #include "wcnet.h"
 
+//compile : cl.exe main.c /TC /I . /link wcnet.lib
+
 int main(int argc,char **argv)
 {
     char message[] = "Hello World";
