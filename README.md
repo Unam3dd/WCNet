@@ -18,6 +18,37 @@ WCNet is network library for windows operating system in development the last ve
 ![screen1](screenshot/screen3.PNG)
 ![screen1](screenshot/screen5.PNG)
 
+```c
+#include "wcnet.h"
+
+int main(int argc,char **argv)
+{
+    char message[] = "Hello World";
+    char response[1024] = {0};
+    SOCKET fd = Socket(AF_INET,SOCK_STREAM,IPPROTO_TCP,FALSE);
+
+    if (fd < 0)
+    {
+        WSAstrerror(WSAGetLastError());
+    }
+
+    if (Connect(fd,"192.168.1.70",555) == SOCKET_ERROR)
+        WSAstrerror(WSAGetLastError());
+    
+
+    Send(fd,message,0);
+
+    int i = recv(fd,response,sizeof(response),0);
+
+    if (i < 0)
+        WSAstrerror(WSAGetLastError());
+    
+    printf("%s\n",response);
+
+    closesocket(fd);
+}
+```
+
 
 
 
