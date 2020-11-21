@@ -4,16 +4,13 @@
 //               SOCKET FUNCTION                     //
 ///////////////////////////////////////////////////////
 
-SOCKET Socket(int family,int type,int protocol,BOOL OVERLAPPED)
+SOCKET Socket(int family,int type,int protocol)
 {
     WSADATA wsa;
     SOCKET fd;
     
     if (WSAStartup(MAKEWORD(2,2),&wsa) != 0)
         return ((SOCKET)WSAGetLastError());
-    
-    if (OVERLAPPED == TRUE)
-        return (WSASocketA(family,type,protocol,0,0,WSA_FLAG_OVERLAPPED));
     
     return (WSASocketA(family,type,protocol,0,0,0));
 }
@@ -154,6 +151,11 @@ SOCKET Accept(SOCKET fd)
     struct sockaddr_in s = {0};
     int size = sizeof(s);
     return (accept(fd,(SOCKADDR *)&s,&size));
+}
+
+SOCKET AcceptClient(SOCKET fd,struct sockaddr_in *clientinfo,int *size_client)
+{
+    return (accept(fd,(struct sockaddr *)clientinfo,size_client));
 }
 
 struct sockaddr_in session(const char *host,int port)
@@ -671,4 +673,56 @@ long to_long(char* number)
     }
 
     return (tolong);
+}
+
+
+void *ThreadStreamInSocket(void *param)
+{
+    StreamInSocket_t s = *(StreamInSocket_t *)param;
+    int bytes = 0;
+    char buffer[MAX_BUFFER_SIZE] = {0};
+
+    while ((bytes = read(s.in,buffer,(MAX_BUFFER_SIZE - 1)))){
+        if (send(s.out,buffer,bytes,0) < 0){
+            fprintf(stderr,"[-] Error send data in socket !\n[-] client probaly closed the connection\n");
+            break;
+        }
+    }
+
+    if (bytes < 0)
+        fprintf(stderr,"[-] Error reading STDIN (0)\n");
+
+    return (NULL);
+}
+
+int InteractWithFd(SOCKET fd)
+{
+    pthread_t thread;
+    StreamInSocket_t s = {0};
+    unsigned long nonblock = -1;
+    char buffer[MAX_BUFFER_SIZE] = {0};
+    ioctlsocket(fd,FIONBIO,&nonblock);
+    int bytes = 0;
+    s.in = STDIN_FILENO;
+    s.out = fd;
+
+    if (pthread_create(&thread,NULL,ThreadStreamInSocket,(void *)&s) != 0){
+        return (-1);
+    }
+
+    for (;;){
+        while ((bytes = recv(fd,buffer,(MAX_BUFFER_SIZE - 1),0)) > 0)
+        {
+            if (write(STDOUT_FILENO,buffer,bytes) < 0)
+            {
+                fprintf(stderr,"[-] Error write stream in output !\n");
+                return (-2);
+            }
+        }
+    }
+
+    pthread_cancel(thread);
+    pthread_join(thread,NULL);
+
+    return (0);
 }

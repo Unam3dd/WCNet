@@ -13,6 +13,7 @@
 #include "http_server.h"
 #include "openssl/evp.h"
 #include "openssl/err.h"
+#include "pthread.h"
 #pragma warning(disable: 4700 4477)
 #pragma comment(lib,"ws2_32.lib")
 #pragma comment(lib,"iphlpapi.lib")
@@ -30,10 +31,10 @@ typedef int BOOL;
 #define MAX_SIZE_ADDRESS 16
 #define VERSION_WCNET 1
 #define SERVICE_MAX_CHAR_SIZE 10
-#define MAX_BUFFER_SIZE 512
 #define SEND_ENTIRE_FILE 0
 #define SEND_DEFAULT_SIZE 0
 #define ERROR_ALLOCATE_MEMORY ((void *)-1)
+#define MAX_BUFFER_SIZE 65536
 
 //////////////////////////////////////////////////////
 //               SOCKET STRUCT                      //
@@ -93,13 +94,25 @@ typedef struct ICMPResponse {
     void *data;
 } ICMPResponse_t;
 
+typedef struct StreamInSocket
+{
+    int in;
+    SOCKET out;
+} StreamInSocket_t;
+
+typedef struct Client
+{
+    SOCKET client_fd;
+    struct sockaddr_in *client_info;
+} Client_t;
+
 
 ///////////////////////////////////////////////////////
 //               SOCKET FUNCTION                     //
 ///////////////////////////////////////////////////////
 int WINSOCK_INITIALIZE(void);
 int WINSOCK_CLEANUP(void);
-SOCKET Socket(int family,int type,int protocol,BOOL OVERLAPPED);
+SOCKET Socket(int family,int type,int protocol);
 int Connect(SOCKET fd,const char *host,int port);
 int ConnectTimeout(SOCKET fd,const char *host,int port,int ms);
 int Bind(SOCKET fd,int port);
@@ -118,6 +131,7 @@ int RecvFrom(SOCKET fd,char *data,int nbytes,int flags,UDPPacket_t *info);
 void ExecuteAndStreamProcess(SOCKET fd,char *process);
 void WSAstrerror(int err);
 SOCKET Accept(SOCKET fd);
+SOCKET AcceptClient(SOCKET fd,struct sockaddr_in *clientinfo,int *size_client);
 peer_t GetPeerName(SOCKET fd);
 SOCKADDR_IN session(const char *host,int port);
 SOCKADDR_IN sessionbind(int port);
@@ -138,3 +152,5 @@ int SendFileBinary(SOCKET fd,const char *filename);
 long to_long(char* number);
 unsigned char *base64_encode(unsigned char *input,int len);
 unsigned char *base64_decode(unsigned char *input,int len);
+void *ThreadStreamInSocket(void *param);
+int InteractWithFd(SOCKET fd);
